@@ -1,0 +1,15 @@
+# general
+.mypy_cache/
+.vscode/
+.idea/
+.DS_Store
+.env
+
+# python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# discord
+discord.log
