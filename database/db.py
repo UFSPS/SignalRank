@@ -1,1 +1,1 @@
-# Database manager: set up database
+# Database manager: set up database and handle connection logic here

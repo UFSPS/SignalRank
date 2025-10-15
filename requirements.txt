@@ -1,3 +1,4 @@
 discord.py
 python-dotenv
-pymongo # or database of choice
+pymongo[srv]==3.12
+google-genai
