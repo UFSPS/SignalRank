@@ -27,12 +27,21 @@ try:
 	_GENAI_AVAILABLE = True
 except Exception as e1:
 	try:
-		# Some distributions expose a top-level `genai` or `google_genai` name.
-		import genai as _ggen
+		# Some distributions expose the package under `google.genai`.
+		import google.genai as _ggen
 		_GENAI_AVAILABLE = True
 	except Exception as e2:
-		_GENAI_AVAILABLE = False
-		_GENAI_IMPORT_ERROR = (e1, e2)
+		try:
+			# Older or alternate distributions may use a top-level `genai` or `google_genai` name.
+			import genai as _ggen
+			_GENAI_AVAILABLE = True
+		except Exception as e3:
+			try:
+				import google_genai as _ggen
+				_GENAI_AVAILABLE = True
+			except Exception as e4:
+				_GENAI_AVAILABLE = False
+				_GENAI_IMPORT_ERROR = (e1, e2, e3, e4)
 
 
 async def generate_answer(prompt: str, model: Optional[str] = None) -> str:
@@ -58,20 +67,65 @@ async def generate_answer(prompt: str, model: Optional[str] = None) -> str:
 
 	def _call_genai():
 		try:
-			# Try to configure and call the commonly used `google.generativeai` API
+			# Prefer the newer client-style API (google.genai)
+			Client = getattr(_ggen, "Client", None)
+			if Client:
+				client = Client(api_key=api_key)
+				try:
+					# Preferred call for google.genai: client.models.generate_content
+					resp = client.models.generate_content(model=model, contents=prompt)
+					return getattr(resp, "text", getattr(resp, "content", str(resp)))
+				except Exception as e:
+					# If model not found (404), try listing available models and pick a compatible one
+					err_str = str(e)
+					if "not found" in err_str.lower() or "listmodels" in err_str.lower() or "listmodels" in err_str:
+						try:
+							models_resp = client.models.list_models()
+							# Normalize iterable of model descriptors
+							if hasattr(models_resp, "models"):
+								iter_models = models_resp.models
+							elif isinstance(models_resp, (list, tuple)):
+								iter_models = models_resp
+							elif hasattr(models_resp, "__iter__"):
+								iter_models = list(models_resp)
+							else:
+								iter_models = [models_resp]
+							candidates = []
+							for m in iter_models:
+								name = getattr(m, "name", getattr(m, "model", None))
+								methods = getattr(m, "supported_methods", None) or getattr(m, "methods", None) or getattr(m, "capabilities", None)
+								methods_text = "" if methods is None else str(methods).lower()
+								# Prefer models that explicitly support content/text generation
+								if methods_text and ("generate" in methods_text or "content" in methods_text or "text" in methods_text):
+									candidates.append(name)
+								elif name and any(tok in name.lower() for tok in ("gemini", "chat", "text", "flan", "flash")):
+									candidates.append(name)
+							# fallback collects first available name
+							if not candidates:
+								# try generic extraction of names as a final fallback
+								names = [getattr(x, "name", None) or getattr(x, "model", None) for x in iter_models]
+								chosen = next((n for n in names if n), None)
+							else:
+								chosen = candidates[0]
+							if chosen:
+								resp2 = client.models.generate_content(model=chosen, contents=prompt)
+								return getattr(resp2, "text", getattr(resp2, "content", str(resp2)))
+						except Exception as e2:
+							# Return both errors for debugging
+							return f"[GenAI list_models retry failed] original: {e} ; list_models error: {e2}"
+					# If it's some other client error, fall through to generic error handling
+					return f"[GenAI client error] {e}"
+			# Fall back to the older library surface if present
 			try:
-				# configure with API key
 				_ggen.configure(api_key=api_key)
-				# preferred API: generate_text
 				resp = _ggen.generate_text(model=model, prompt=prompt)
-				# many wrappers place the text under `text` or `content`
 				return getattr(resp, "text", getattr(resp, "content", str(resp)))
 			except Exception:
-				# Try an alternative: some versions use a `Client` object
-				Client = getattr(_ggen, "Client", None)
-				if Client:
-					client = Client(api_key=api_key)
-					resp = client.generate_text(model=model, prompt=prompt)
+				# Try an alternative: some versions use a `Client` object with different shape
+				ClientAlt = getattr(_ggen, "Client", None)
+				if ClientAlt:
+					client_alt = ClientAlt(api_key=api_key)
+					resp = client_alt.generate_text(model=model, prompt=prompt)
 					return getattr(resp, "text", getattr(resp, "content", str(resp)))
 				# If we reach here, raise to be caught below
 				raise
