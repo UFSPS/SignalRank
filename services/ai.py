@@ -21,27 +21,10 @@ from typing import Optional
 # 3rd-party `google-genai` package. We'll detect availability at runtime.
 _GENAI_AVAILABLE = False
 _GENAI_IMPORT_ERROR = None
-try:
-	# Try the modern, commonly used import path
-	from google import generativeai as _ggen
-	_GENAI_AVAILABLE = True
-except Exception as e1:
-	try:
-		# Some distributions expose the package under `google.genai`.
-		import google.genai as _ggen
-		_GENAI_AVAILABLE = True
-	except Exception as e2:
-		try:
-			# Older or alternate distributions may use a top-level `genai` or `google_genai` name.
-			import genai as _ggen
-			_GENAI_AVAILABLE = True
-		except Exception as e3:
-			try:
-				import google_genai as _ggen
-				_GENAI_AVAILABLE = True
-			except Exception as e4:
-				_GENAI_AVAILABLE = False
-				_GENAI_IMPORT_ERROR = (e1, e2, e3, e4)
+
+# Try the modern, commonly used import path
+from google import genai as _ggen
+_GENAI_AVAILABLE = True
 
 
 async def generate_answer(prompt: str, model: Optional[str] = None) -> str:
