@@ -5,11 +5,6 @@ import html
 import random
 import asyncio
 
-# Bot setup
-intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix='!', intents=intents)
-
 # Store active trivia sessions per channel
 active_sessions = {}
 
@@ -76,16 +71,7 @@ def create_question_embed(question_data, answers):
     
     return embed
 
-@bot.event
-async def on_ready():
-    print(f'{bot.user} has connected to Discord!')
-    print(f'Bot is ready in {len(bot.guilds)} guilds')
-
-@bot.command(name='trivia', help='Start a trivia question')
-async def trivia(ctx, difficulty: str = None):
-    """Start a single trivia question.
-    Usage: !trivia or !trivia easy/medium/hard
-    """
+async def trivia(bot, ctx, difficulty: str = None):
     channel_id = ctx.channel.id
     
     # Check if there's already an active session in this channel
@@ -155,11 +141,7 @@ async def trivia(ctx, difficulty: str = None):
         await ctx.send(f"⏰ Time's up! The correct answer was: **{correct_answer}**")
         del active_sessions[channel_id]
 
-@bot.command(name='trivia_multi', help='Start a trivia game with multiple questions')
-async def trivia_multi(ctx, num_questions: int = 5, difficulty: str = None):
-    """Start a trivia game with multiple questions.
-    Usage: !trivia_multi 5 or !trivia_multi 10 hard
-    """
+async def trivia_multi(bot, ctx, num_questions: int = 5, difficulty: str = None):
     channel_id = ctx.channel.id
     
     # Check if there's already an active session
@@ -244,24 +226,22 @@ async def trivia_multi(ctx, num_questions: int = 5, difficulty: str = None):
     # Clean up session
     del active_sessions[channel_id]
 
-@bot.command(name='trivia_help', help='Show trivia bot commands')
 async def trivia_help_cmd(ctx):
-    """Display help information for the trivia bot."""
     embed = discord.Embed(
-        title="🎮 Trivia Bot Commands",
+        title="🎮 SignalRank - Trivia Commands",
         description="Here are all the available trivia commands:",
         color=discord.Color.green()
     )
     
     embed.add_field(
-        name="!trivia [difficulty]",
-        value="Start a single trivia question\nExample: `!trivia` or `!trivia hard`",
+        name=".trivia [difficulty]",
+        value="Start a single trivia question\nExample: `.trivia` or `.trivia hard`",
         inline=False
     )
     
     embed.add_field(
-        name="!trivia_multi [num] [difficulty]",
-        value="Start a multi-question trivia game (1-20 questions)\nExample: `!trivia_multi 10` or `!trivia_multi 5 easy`",
+        name=".trivia_multi [num] [difficulty]",
+        value="Start a multi-question trivia game (1-20 questions)\nExample: `.trivia_multi 10` or `.trivia_multi 5 easy`",
         inline=False
     )
     
@@ -274,8 +254,3 @@ async def trivia_help_cmd(ctx):
     embed.set_footer(text="You have 30 seconds to answer each question!")
     
     await ctx.send(embed=embed)
-
-# Replace 'YOUR_BOT_TOKEN' with your actual Discord bot token
-if __name__ == "__main__":
-    TOKEN = 'YOUR_BOT_TOKEN'  # Replace with your bot token
-    bot.run(TOKEN)
