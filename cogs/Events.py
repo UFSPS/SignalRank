@@ -1,3 +1,5 @@
+# Example events
+
 from discord.ext import commands
 
 class Events(commands.Cog):

@@ -1,3 +1,5 @@
+# Example commands
+
 from discord.ext import commands
 
 class Commands(commands.Cog):
